@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Box Plan Booking System</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 10px;
+    background: #fff;
+    -webkit-overflow-scrolling: touch;
+    touch-action: manipulation;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  .header h1 {
+    font-size: 14px;
+    margin: 0;
+  }
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    font-size: 10px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .color-box {
+    width: 15px;
+    height: 15px;
+    border-radius: 3px;
+  }
+  .plan-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 15px;
+  }
+  .stage {
+    background: #333;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 5px;
+    font-size: 12px;
+    user-select: none;
+    margin-bottom: 10px;
+  }
+  .plan-container {
+    display: grid;
+    grid-template-columns: 20px repeat(25, 20px);
+    grid-auto-rows: 20px;
+    gap: 2px;
+    user-select: none;
+    font-size: 8px;
+    min-width: max-content;
+  }
+  .row-break {
+    height: 8px;
+    grid-column: 1 / span 26;
+  }
+  .col-label, .row-label {
+    text-align: center;
+    font-weight: bold;
+    color: #333;
+    border-radius: 3px;
+    user-select: none;
+  }
+  .row-label {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 9px;
+  }
+  .seat {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+  }
+  .seat span {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    font-weight: bold;
+    color: white;
+  }
+  .blue { background: #cce5ff; }
+  .yellow { background: #fff8cc; }
+  .green { background: #d9fdd3; }
+  .purple { background: #f0e1ff; }
+  .selected { background: #ccc !important; border: 1px solid #666; }
+  .booked { background: #e74c3c !important; border: 1px solid black; cursor: not-allowed; }
+  .popup-form {
+    position: absolute;
+    background: white;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    font-size: 12px;
+    width: 190px;
+    z-index: 1000;
+  }
+  input, button {
+    font-size: 12px;
+    margin-top: 6px;
+    padding: 5px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  @media (max-width: 768px) {
+    .plan-container {
+      grid-template-columns: 15px repeat(25, 15px);
+      font-size: 6px;
+    }
+    .seat {
+      width: 20px;
+      height: 20px;
+      font-size: 6px;
+    }
+    .row-label, .col-label {
+      font-size: 7px;
+    }
+    .stage {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .popup-form {
+      width: 90vw !important;
+      max-width: 300px;
+      font-size: 14px;
+      left: 5vw !important;
+      top: auto !important;
+      bottom: 10px !important;
+      position: fixed !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      border-radius: 10px;
+    }
+    input, button {
+      font-size: 14px;
+      padding: 10px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>21 June 2025 - Stage Drama "හරිම බඩු තුනක්" 6.30 Show Booking Status</h1>
+  <div class="legend">
+    <div class="legend-item"><div class="color-box blue"></div>Rs. 5000</div>
+    <div class="legend-item"><div class="color-box yellow"></div>Rs. 3000</div>
+    <div class="legend-item"><div class="color-box green"></div>Rs. 2000</div>
+    <div class="legend-item"><div class="color-box purple"></div>Rs. 1000</div>
+    <div class="legend-item"><div class="color-box" style="background:#e74c3c; border: 1px solid black;"></div>Booked</div>
+  </div>
+</div>
+<div class="plan-wrapper">
+  <div>
+    <div class="stage" id="stage">STAGE</div>
+    <div class="plan-container" id="seatingPlan"></div>
+  </div>
+</div>
+<script>
+const rows = [
+  "A", "B", "C", "D", "E", "F", "FA",
+  "BREAK2",
+  "G", "H", "J", "K", "L", "M",
+  "BREAK3",
+  "P", "Q", "R", "S", "T", "U", "V", "W", "X",
+  "BREAK4",
+  "BA", "BB", "BC", "BD", "BE", "BF", "BG", "BH", "BJ"
+];
+const cols = Array.from({ length: 25 }, (_, i) => i + 1);
+const removedSeats = new Set([
+  "K25", "L25","M25", "P23", "P24", "P25", "Q23", "Q24", "Q25",
+  "R23", "R24", "R25", "S23", "S24", "S25", "T23", "T24", "T25",
+  "U23", "U24", "U25", "V23", "V24", "V25", "W23", "W24", "W25", "X23", "X24", "X25",
+"BA21","BA22","BA23","BA24","BA25",
+"BB21","BB22","BB23","BB24","BB25",
+"BC21","BC22","BC23","BC24","BC25",
+"BD21","BD22","BD23","BD24","BD25",
+"BE21","BE22","BE23","BE24","BE25",
+"BF21","BF22","BF23","BF24","BF25",
+"BG21","BG22","BG23","BG24","BG25",
+"BH21","BH22","BH23","BH24","BH25",
+"BJ21","BJ22","BJ23","BJ24","BJ25",
+]);
+let bookings = JSON.parse(localStorage.getItem("bookings") || "[]");
+let selectedSeats = [];
+
+function getColor(row) {
+  const blue = ["A", "B", "C"];
+  const yellow = ["D", "E", "F", "FA"];
+  const green = ["G", "H", "J", "K", "L", "M", "BA", "BB", "BC", "BD", "BE", "BF", "BG", "BH", "BJ"];
+  const purple = ["P", "Q", "R", "S", "T", "U", "V", "W", "X"];
+  if (blue.includes(row)) return "blue";
+  if (yellow.includes(row)) return "yellow";
+  if (green.includes(row)) return "green";
+  if (purple.includes(row)) return "purple";
+  return "";
+}
+
+function generateSeats() {
+  const plan = document.getElementById("seatingPlan");
+  plan.innerHTML = "";
+
+  const addColumnLabels = () => {
+    const corner = document.createElement("div");
+    corner.className = "col-label";
+    plan.appendChild(corner);
+    cols.forEach(col => {
+      const colLabel = document.createElement("div");
+      colLabel.className = "col-label";
+      colLabel.textContent = col;
+      plan.appendChild(colLabel);
+    });
+  };
+
+  addColumnLabels();
+
+  rows.forEach((row, i) => {
+    if (row.startsWith("BREAK")) {
+      const spacer = document.createElement("div");
+      spacer.className = "row-break";
+      spacer.style.gridColumn = "1 / span 26";
+      plan.appendChild(spacer);
+
+
+    const prev = rows[i - 1];
+    const next = rows[i + 1];
+
+    if (prev === "FA" && next === "G") {
+      addColumnLabels( ); // full 25 columns
+    } else if (prev === "M" && next === "P") {
+      addColumnLabels(22); // limit to 1–22
+    } else if (prev === "X" && next === "BA") {
+      addColumnLabels(20); // limit to 1–20
+    }
+
+    return;
+  }
+
+    const rowLabel = document.createElement("div");
+    rowLabel.className = "row-label";
+    rowLabel.textContent = row;
+    plan.appendChild(rowLabel);
+
+    cols.forEach(col => {
+      const seatId = `${row}${col}`;
+      if (removedSeats.has(seatId)) {
+        const blank = document.createElement("div");
+        blank.className = "seat";
+        blank.style.visibility = "hidden";
+        plan.appendChild(blank);
+        return;
+      }
+
+      const seatDiv = document.createElement("div");
+      seatDiv.className = `seat ${getColor(row)}`;
+      const isBooked = bookings.some(b => b.id === seatId);
+
+      seatDiv.innerHTML = `<span>${isBooked ? seatId : ""}</span>`;
+      if (isBooked) seatDiv.classList.add("booked");
+      if (selectedSeats.includes(seatId)) seatDiv.classList.add("selected");
+
+      seatDiv.dataset.seat = seatId;
+      seatDiv.title = seatId;
+
+      seatDiv.addEventListener("click", () => {
+        if (seatDiv.classList.contains("booked")) {
+          selectedSeats = selectedSeats.includes(seatId) ? [] : [seatId];
+        } else {
+          selectedSeats = selectedSeats.includes(seatId)
+            ? selectedSeats.filter(s => s !== seatId)
+            : [...selectedSeats, seatId];
+        }
+        generateSeats();
+        showPopup();
+      });
+
+      plan.appendChild(seatDiv);
+    });
+  });
+}
+
+function showPopup() {
+  document.querySelectorAll(".popup-form").forEach(p => p.remove());
+  if (selectedSeats.length === 0) return;
+
+  const stage = document.getElementById("stage");
+  const rect = stage.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+
+  const popup = document.createElement("div");
+  popup.className = "popup-form";
+  const allSelectedBooked = selectedSeats.every(seat =>
+    bookings.some(b => b.id === seat)
+  );
+
+  popup.innerHTML = allSelectedBooked
+    ? `<strong>Cancel Booking:</strong><br>Seats: ${selectedSeats.join(", ")}<br><input type="text" id="cancelCode" placeholder="Enter booking code" /><button id="cancelBtn" disabled>Cancel Booking</button>`
+    : `<strong>Book Seats:</strong><br>Seats: ${selectedSeats.join(", ")}<br><input type="text" id="bookCode" placeholder="Enter booking code" /><button id="bookBtn" disabled>Confirm Booking</button>`;
+
+  document.body.appendChild(popup);
+
+  if (viewportWidth <= 768) {
+    popup.style.position = "fixed";
+    popup.style.bottom = "10px";
+    popup.style.left = "5vw";
+    popup.style.width = "90vw";
+  } else {
+    popup.style.top = window.scrollY + rect.top + "px";
+    popup.style.left = window.scrollX + rect.right + 10 + "px";
+  }
+
+  const input = popup.querySelector("input");
+  const btn = popup.querySelector("button");
+  input.addEventListener("input", () => {
+    btn.disabled = input.value.trim() === "";
+  });
+
+  btn.addEventListener("click", () => {
+    const code = input.value.trim();
+    if (!code) return;
+
+    if (allSelectedBooked) {
+      const allMatch = selectedSeats.every(seat => {
+        const booking = bookings.find(b => b.id === seat);
+        return booking && booking.code === code;
+      });
+      if (!allMatch) {
+        alert("Booking code does not match all selected booked seats.");
+        return;
+      }
+      bookings = bookings.filter(b => !selectedSeats.includes(b.id));
+      alert(`Booking cancelled for seats: ${selectedSeats.join(", ")}`);
+    } else {
+      const anyBooked = selectedSeats.some(seat => bookings.some(b => b.id === seat));
+      if (anyBooked) {
+        alert("Some selected seats are already booked. Please refresh and try again.");
+        return;
+      }
+      selectedSeats.forEach(seat => bookings.push({ id: seat, code }));
+      alert(`Booking confirmed for seats: ${selectedSeats.join(", ")}`);
+    }
+
+    localStorage.setItem("bookings", JSON.stringify(bookings));
+    selectedSeats = [];
+    generateSeats();
+    popup.remove();
+  });
+}
+
+generateSeats();
+</script>
+</body>
+</html>
